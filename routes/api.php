@@ -8,33 +8,38 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\FriendController;
 use App\Http\Controllers\Api\NotificationController;
 
-// =========================================
-// Public routes (không cần đăng nhập)
-// =========================================
-Route::prefix('auth')->group(function () {
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login',    [AuthController::class, 'login']);
+/*
+|--------------------------------------------------------------------------
+| API Routes - CẤU TRÚC PHẲNG (DỄ NHẬN DIỆN TRÊN RENDER)
+|--------------------------------------------------------------------------
+*/
+
+// TEST - Kiểm tra xem API có sống không
+Route::get('/test', function() {
+    return response()->json(['message' => 'Hệ thống API đã kết nối thành công!']);
 });
 
-// =========================================
-// Protected routes (cần Bearer Token)
-// =========================================
-Route::middleware('auth:sanctum')->group(function () {
+// AUTH (Công khai)
+Route::post('/auth/register', [AuthController::class, 'register']);
+Route::post('/auth/login',    [AuthController::class, 'login']);
 
-    // Auth
-    Route::get('/auth/me',     [AuthController::class, 'me']);
+// NHÓM BẢO MẬT (Cần Token)
+Route::middleware('auth:sanctum')->group(function () {
+    
+    // User Info
+    Route::get('/auth/me',      [AuthController::class, 'me']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
 
     // Chi tiêu & Danh mục
-    Route::get('/categories',       [CategoryController::class, 'index']);
-    Route::get('/expenses',         [ExpenseController::class, 'index']);
-    Route::get('/expenses/stats',   [ExpenseController::class, 'stats']);
-    Route::post('/expenses',        [ExpenseController::class, 'store']);
+    Route::get('/categories',     [CategoryController::class, 'index']);
+    Route::get('/expenses',       [ExpenseController::class, 'index']);
+    Route::get('/expenses/stats', [ExpenseController::class, 'stats']);
+    Route::post('/expenses',      [ExpenseController::class, 'store']);
     Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy']);
 
-    // Kết bạn & Danh sách bạn bè
-    Route::get('/friends/search',  [FriendController::class, 'search']);
-    Route::get('/friends',         [FriendController::class, 'index']);
+    // Mạng xã hội
+    Route::get('/friends/search',   [FriendController::class, 'search']);
+    Route::get('/friends',          [FriendController::class, 'index']);
     Route::post('/friends/request', [FriendController::class, 'sendRequest']);
     Route::post('/friends/respond', [FriendController::class, 'respond']);
 
