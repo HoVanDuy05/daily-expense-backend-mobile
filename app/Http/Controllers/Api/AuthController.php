@@ -7,89 +7,97 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
     /**
-     * Đăng ký tài khoản mới
+     * Đăng ký tài khoản mới - CHUẨN RESTFUL API
      */
     public function register(Request $request)
     {
+        // Laravel tự động ném ra ValidationException nếu lỗi, trả về 422 JSON
+        $validated = $request->validate([
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|email|unique:users,email',
+            'password' => 'required|string|min:6',
+        ], [
+            'email.unique' => 'Email này đã được sử dụng rồi bạn ơi!',
+            'email.required' => 'Đừng quên nhập email nhé.',
+            'password.min' => 'Mật khẩu phải từ 6 ký tự trở lên cho bảo mật.',
+            'name.required' => 'Vui lòng điền tên của bạn.'
+        ]);
+
+        $user = User::create([
+            'name'     => $validated['name'],
+            'email'    => $validated['email'],
+            'password' => Hash::make($validated['password']),
+        ]);
+
+        // Tạo settings mặc định
+        $user->settings()->create([
+            'currency'    => 'VND',
+            'notify_push' => true,
+            'theme'       => 'light',
+            'language'    => 'vi',
+            'avatar'      => "https://ui-avatars.com/api/?name=" . urlencode($user->name) . "&background=7C3AED&color=fff"
+        ]);
+
+        $token = $user->createToken('mobile-app')->plainTextToken;
+
+        return response()->json([
+            'user'  => $user->load('settings'),
+            'token' => $token,
+        ], 201);
+    }
+
+    /**
+     * Đăng nhập - CHUẨN RESTFUL API
+     */
+    public function login(Request $request)
+    {
         try {
             $request->validate([
-                'name'     => 'required|string|max:255',
-                'email'    => 'required|email|unique:users,email',
-                'password' => 'required|string|min:6',
+                'email'    => 'required|email',
+                'password' => 'required|string',
             ]);
 
-            $user = User::create([
-                'name'     => $request->name,
-                'email'    => $request->email,
-                'password' => Hash::make($request->password),
-            ]);
+            if (!Auth::attempt($request->only('email', 'password'))) {
+                return response()->json([
+                    'message' => 'Email hoặc mật khẩu không chính xác.'
+                ], 401);
+            }
 
-            // Tạo settings mặc định cho user mới
-            $user->settings()->create([
-                'currency'    => 'VND',
-                'notify_push' => true,
-                'theme'       => 'light',
-                'language'    => 'vi',
-                'avatar'      => "https://ui-avatars.com/api/?name=" . urlencode($request->name) . "&background=7C3AED&color=fff"
-            ]);
+            $user = Auth::user();
 
-            $token = $user->createToken('mobile-app')->plainTextToken;
+            // SỬA LỖI 500: Tự động tạo settings nếu chẳng may bị thiếu
+            if (!$user->settings) {
+                $user->settings()->create([
+                    'currency'    => 'VND',
+                    'notify_push' => true,
+                    'theme'       => 'light',
+                    'language'    => 'vi',
+                    'avatar'      => "https://ui-avatars.com/api/?name=" . urlencode($user->name) . "&background=7C3AED&color=fff"
+                ]);
+            }
 
             return response()->json([
                 'user'  => $user->load('settings'),
-                'token' => $token,
-            ], 201);
+                'token' => $user->createToken('mobile-app')->plainTextToken,
+            ]);
 
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Lỗi máy chủ: ' . $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile()
+                'status'  => 'error',
+                'message' => 'Lỗi máy chủ: ' . $e->getMessage()
             ], 500);
         }
     }
 
-    /**
-     * Đăng nhập
-     */
-    public function login(Request $request)
-    {
-        $request->validate([
-            'email'    => 'required|email',
-            'password' => 'required|string',
-        ]);
-
-        if (!Auth::attempt($request->only('email', 'password'))) {
-            throw ValidationException::withMessages([
-                'email' => ['Email hoặc mật khẩu không đúng.'],
-            ]);
-        }
-
-        $user  = Auth::user()->load('settings');
-        $token = $user->createToken('mobile-app')->plainTextToken;
-
-        return response()->json([
-            'user'  => $user,
-            'token' => $token,
-        ]);
-    }
-
-    /**
-     * Lấy thông tin user hiện tại
-     */
     public function me(Request $request)
     {
         return response()->json($request->user()->load('settings'));
     }
 
-    /**
-     * Đăng xuất (Thu hồi token)
-     */
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
