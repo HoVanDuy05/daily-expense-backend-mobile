@@ -62,13 +62,14 @@ class FriendController extends Controller
             ->with('sender')
             ->get()
             ->map(function($fr) {
+                if (!$fr->sender) return null;
                 return [
                     'id' => $fr->sender->id,
                     'friendship_id' => $fr->id,
                     'name' => $fr->sender->name,
-                    'avatar' => $fr->sender->settings->avatar ?? "https://ui-avatars.com/api/?name=" . urlencode($fr->sender->name) . "&background=random"
+                    'avatar' => $fr->sender->settings?->avatar ?? "https://ui-avatars.com/api/?name=" . urlencode($fr->sender->name) . "&background=random"
                 ];
-            });
+            })->filter();
 
         return response()->json([
             'friends' => $friends,
