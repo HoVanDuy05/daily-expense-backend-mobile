@@ -1,13 +1,15 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\File;
 
 Route::get('/', function () {
+    $apiExists = File::exists(base_path('routes/api.php')) ? 'YES' : 'NO';
+    
     return response()->json([
         'status' => 'success',
-        'message' => '🚀 DAILY EXPENSE SERVER IS ALIVE!',
-        'laravel_version' => App::version(),
-        'php_version' => PHP_VERSION,
-        'environment' => App::environment()
+        'message' => '🚀 SERVER IS RUNNING!',
+        'api_file_exists' => $apiExists,
+        'time' => now()->toDateTimeString()
     ]);
 });
