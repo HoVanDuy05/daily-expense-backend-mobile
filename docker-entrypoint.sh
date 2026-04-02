@@ -16,6 +16,10 @@ php artisan view:clear
 # Làm sạch route cache để Render luôn nhận diện route mới
 echo "⚡ Khởi tạo cấu hình sạch cho môi trường sản phẩm..."
 
+# Đảm bảo bảng Token của Sanctum tồn tại (Sửa lỗi missing personal_access_tokens)
+echo "🔑 Đang cấu hình hệ thống Token (Sanctum)..."
+php artisan sanctum:install --no-interaction
+
 # Tự động chạy Migration để cập nhật database (Supabase PG)
 echo "🐘 Đang chạy database migrations..."
 php artisan migrate --force
