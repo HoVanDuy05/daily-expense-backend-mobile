@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 class FriendController extends Controller
 {
     /**
-     * Tìm kiếm user để kết bạn theo email hoặc tên
+     * Tìm kiếm người dùng mới để kết bạn
      */
     public function search(Request $request)
     {

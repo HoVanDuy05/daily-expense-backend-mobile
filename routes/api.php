@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\FriendController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\MessageController;
 
 /*
 |--------------------------------------------------------------------------
@@ -37,15 +38,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/expenses',      [ExpenseController::class, 'store']);
     Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy']);
 
-    // Mạng xã hội
-    Route::get('/friends/search',   [FriendController::class, 'search']);
+    // Mạng xã hội & Tìm kiếm
+    Route::get('/users/search',     [FriendController::class, 'search']);
     Route::get('/friends',          [FriendController::class, 'index']);
     Route::post('/friends/request', [FriendController::class, 'sendRequest']);
-    Route::post('/friends/respond', [FriendController::class, 'respond']);
+    Route::post('/friends/accept/{senderId}', [FriendController::class, 'acceptRequest']);
 
     // HỆ THỐNG TIN NHẮN (CHAT)
     Route::get('/messages', [MessageController::class, 'index']);
     Route::get('/messages/chat/{friendId}', [MessageController::class, 'chat']);
+    Route::post('/messages', [MessageController::class, 'store']);
 
     // Thông báo
     Route::get('/notifications', [NotificationController::class, 'index']);
