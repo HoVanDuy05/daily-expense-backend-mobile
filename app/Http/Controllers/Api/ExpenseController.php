@@ -78,7 +78,7 @@ class ExpenseController extends Controller
             'title'       => 'nullable|string|max:100',
             'category_id' => 'required|exists:categories,id',
             'note'        => 'nullable|string',
-            'photo'       => 'nullable|image|max:10240',
+            'photo'       => 'nullable|file|mimes:jpg,jpeg,png,webp,heic|max:20480',
         ]);
 
         $photoPath = null;
