@@ -16,33 +16,42 @@ class AuthController extends Controller
      */
     public function register(Request $request)
     {
-        $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:users,email',
-            'password' => 'required|string|min:6',
-        ]);
+        try {
+            $request->validate([
+                'name'     => 'required|string|max:255',
+                'email'    => 'required|email|unique:users,email',
+                'password' => 'required|string|min:6',
+            ]);
 
-        $user = User::create([
-            'name'     => $request->name,
-            'email'    => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
+            $user = User::create([
+                'name'     => $request->name,
+                'email'    => $request->email,
+                'password' => Hash::make($request->password),
+            ]);
 
-        // Tạo settings mặc định cho user mới
-        $user->settings()->create([
-            'currency'    => 'VND',
-            'notify_push' => true,
-            'theme'       => 'light',
-            'language'    => 'vi',
-            'avatar'      => "https://ui-avatars.com/api/?name=" . urlencode($request->name) . "&background=7C3AED&color=fff"
-        ]);
+            // Tạo settings mặc định cho user mới
+            $user->settings()->create([
+                'currency'    => 'VND',
+                'notify_push' => true,
+                'theme'       => 'light',
+                'language'    => 'vi',
+                'avatar'      => "https://ui-avatars.com/api/?name=" . urlencode($request->name) . "&background=7C3AED&color=fff"
+            ]);
 
-        $token = $user->createToken('mobile-app')->plainTextToken;
+            $token = $user->createToken('mobile-app')->plainTextToken;
 
-        return response()->json([
-            'user'  => $user->load('settings'),
-            'token' => $token,
-        ], 201);
+            return response()->json([
+                'user'  => $user->load('settings'),
+                'token' => $token,
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Lỗi máy chủ: ' . $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
+            ], 500);
+        }
     }
 
     /**
