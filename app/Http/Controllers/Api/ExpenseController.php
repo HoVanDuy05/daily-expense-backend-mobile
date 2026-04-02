@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Expense;
+use App\Models\Friendship;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
@@ -13,12 +14,26 @@ use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 class ExpenseController extends Controller
 {
     /**
-     * Lấy danh sách chi tiêu (Feed chính)
+     * Lấy danh sách chi tiêu (Feed chung của bản thân và bạn bè) - CHUẨN FACEBOOK STYLE
      */
     public function index(Request $request)
     {
-        $expenses = Expense::with('category')
-            ->where('user_id', $request->user()->id)
+        $user = $request->user();
+        
+        // Lấy IDs của tất cả bạn bè thực thụ (đã accepted)
+        $friendIds = Friendship::where(function($q) use ($user) {
+                $q->where('sender_id', $user->id)->orWhere('receiver_id', $user->id);
+            })
+            ->where('status', 'accepted')
+            ->get()
+            ->map(function($f) use ($user) {
+                return $f->sender_id == $user->id ? $f->receiver_id : $f->sender_id;
+            });
+
+        $relevantUserIds = $friendIds->push($user->id);
+
+        $expenses = Expense::with(['category', 'user.settings'])
+            ->whereIn('user_id', $relevantUserIds)
             ->orderByDesc('expense_date')
             ->orderByDesc('created_at')
             ->get()
@@ -27,8 +42,10 @@ class ExpenseController extends Controller
                 'title'         => $e->title ?? ($e->category?->name ?? 'Chi tiêu'),
                 'amount'        => -(float) $e->amount,
                 'category'      => $e->category?->name ?? 'Khác',
-                'image'         => $e->photo_path ? Storage::url($e->photo_path) : null,
+                'image'         => $e->photo_path,
                 'note'          => $e->note,
+                'userName'      => $e->user->name,
+                'userAvatar'    => $e->user->settings?->avatar ?? null,
                 'date'          => Carbon::parse($e->expense_date)->format('H:i, d/m/Y'),
                 'expense_date'  => Carbon::parse($e->expense_date)->toDateString(),
             ]);

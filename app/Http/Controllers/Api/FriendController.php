@@ -33,7 +33,7 @@ class FriendController extends Controller
                     'id' => $u->id,
                     'name' => $u->name,
                     'email' => $u->email,
-                    'avatar' => $u->settings->avatar ?? "https://ui-avatars.com/api/?name=" . urlencode($u->name) . "&background=random"
+                    'avatar' => $u->settings?->avatar ?? "https://ui-avatars.com/api/?name=" . urlencode($u->name) . "&background=random"
                 ];
             });
 
@@ -52,7 +52,7 @@ class FriendController extends Controller
             return [
                 'id' => $f->id,
                 'name' => $f->name,
-                'avatar' => $f->settings->avatar ?? "https://ui-avatars.com/api/?name=" . urlencode($f->name) . "&background=random"
+                'avatar' => $f->settings?->avatar ?? "https://ui-avatars.com/api/?name=" . urlencode($f->name) . "&background=random"
             ];
         });
 
