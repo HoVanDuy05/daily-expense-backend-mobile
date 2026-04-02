@@ -3,34 +3,81 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Friendship;
 use App\Models\User;
+use App\Models\Friendship;
 use Illuminate\Http\Request;
+use App\Notifications\FriendRequestNotification;
 
 class FriendController extends Controller
 {
     /**
-     * Tìm kiếm người dùng mới để kết bạn
+     * Tìm kiếm người dùng mới (Chuẩn SEO & Performance)
      */
     public function search(Request $request)
     {
         $query = $request->get('q');
-        if (!$query) return response()->json([]);
+        if (!$query || strlen($query) < 2) return response()->json([]);
 
-        $users = User::with('settings')
-            ->where('id', '!=', $request->user()->id)
-            ->where(function ($q) use ($query) {
-                $q->where('name', 'LIKE', "%$query%")
-                  ->orWhere('email', 'LIKE', "%$query%");
+        $userId = $request->user()->id;
+
+        // Tìm những người KHÔNG PHẢI là mình và chưa là bạn
+        $users = User::where(function($q) use ($query) {
+                $q->where('name', 'like', "%$query%")
+                  ->orWhere('email', 'like', "%$query%");
             })
-            ->limit(10)
-            ->get();
+            ->where('id', '!=', $userId)
+            ->limit(15)
+            ->get()
+            ->map(function($u) {
+                return [
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'email' => $u->email,
+                    'avatar' => $u->settings->avatar ?? "https://ui-avatars.com/api/?name=" . urlencode($u->name) . "&background=random"
+                ];
+            });
 
         return response()->json($users);
     }
 
     /**
-     * Gửi yêu cầu kết bạn
+     * Danh sách bạn bè & Lời mời kết bạn
+     */
+    public function index(Request $request)
+    {
+        $user = $request->user();
+
+        // Bạn bè (Đã chấp nhận)
+        $friends = $user->friends()->map(function($f) {
+            return [
+                'id' => $f->id,
+                'name' => $f->name,
+                'avatar' => $f->settings->avatar ?? "https://ui-avatars.com/api/?name=" . urlencode($f->name) . "&background=random"
+            ];
+        });
+
+        // Lời mời đang chờ (Pending)
+        $requests = Friendship::where('receiver_id', $user->id)
+            ->where('status', 'pending')
+            ->with('sender')
+            ->get()
+            ->map(function($fr) {
+                return [
+                    'id' => $fr->sender->id,
+                    'friendship_id' => $fr->id,
+                    'name' => $fr->sender->name,
+                    'avatar' => $fr->sender->settings->avatar ?? "https://ui-avatars.com/api/?name=" . urlencode($fr->sender->name) . "&background=random"
+                ];
+            });
+
+        return response()->json([
+            'friends' => $friends,
+            'requests' => $requests
+        ]);
+    }
+
+    /**
+     * Gửi lời mời kết bạn
      */
     public function sendRequest(Request $request)
     {
@@ -39,77 +86,51 @@ class FriendController extends Controller
         $receiverId = $request->receiver_id;
 
         if ($senderId == $receiverId) {
-            return response()->json(['message' => 'Không thể kết bạn với chính mình.'], 400);
+            return response()->json(['message' => 'Bạn không thể kết bạn với chính mình!'], 422);
         }
 
-        $existing = Friendship::where(function ($q) use ($senderId, $receiverId) {
+        // Kiểm tra xem đã có quan hệ chưa
+        $existing = Friendship::where(function($q) use ($senderId, $receiverId) {
             $q->where('sender_id', $senderId)->where('receiver_id', $receiverId);
-        })->orWhere(function ($q) use ($senderId, $receiverId) {
+        })->orWhere(function($q) use ($senderId, $receiverId) {
             $q->where('sender_id', $receiverId)->where('receiver_id', $senderId);
         })->first();
 
         if ($existing) {
-            return response()->json(['message' => 'Yêu cầu kết bạn đã tồn tại hoặc đã là bạn bè.'], 400);
+            return response()->json(['message' => 'Đã tồn tại lời mời hoặc quan hệ bạn bè!'], 422);
         }
 
-        Friendship::create([
-            'sender_id'   => $senderId,
+        $friendship = Friendship::create([
+            'sender_id' => $senderId,
             'receiver_id' => $receiverId,
-            'status'      => 'pending',
+            'status' => 'pending'
         ]);
 
-        return response()->json(['message' => 'Đã gửi lời mời kết bạn.']);
+        // Gửi thông báo (DB Notification)
+        $receiver = User::find($receiverId);
+        $receiver->notify(new FriendRequestNotification($request->user()));
+
+        return response()->json(['message' => 'Đã gửi lời mời kết bạn!'], 201);
     }
 
     /**
-     * Phản hồi lời mời (chấp nhận/từ chối)
+     * Chấp nhận kết bạn
      */
-    public function respond(Request $request)
+    public function acceptRequest(Request $request, $senderId)
     {
-        $request->validate([
-            'sender_id' => 'required|exists:users,id',
-            'action'    => 'required|in:accept,decline',
-        ]);
-
         $receiverId = $request->user()->id;
-        $senderId = $request->sender_id;
 
         $friendship = Friendship::where('sender_id', $senderId)
             ->where('receiver_id', $receiverId)
             ->where('status', 'pending')
-            ->firstOrFail();
+            ->first();
 
-        if ($request->action === 'accept') {
-            $friendship->update(['status' => 'accepted']);
-            return response()->json(['message' => 'Đã chấp nhận lời mời.']);
-        } else {
-            $friendship->delete();
-            return response()->json(['message' => 'Đã từ chối lời mời.']);
+        if (!$friendship) {
+            return response()->json(['message' => 'Không tìm thấy lời mời kết bạn!'], 404);
         }
-    }
 
-    /**
-     * Lấy danh sách bạn bè & lời mời đang chờ
-     */
-    public function index(Request $request)
-    {
-        $user = $request->user();
+        $friendship->update(['status' => 'accepted']);
 
-        // Danh sách bạn bè (status = accepted)
-        $friendsSent = Friendship::where('sender_id', $user->id)->where('status', 'accepted')->with('receiver.settings')->get()->pluck('receiver');
-        $friendsReceived = Friendship::where('receiver_id', $user->id)->where('status', 'accepted')->with('sender.settings')->get()->pluck('sender');
-        $friends = $friendsSent->concat($friendsReceived);
-
-        // Lời mời đang chờ
-        $requests = Friendship::where('receiver_id', $user->id)
-            ->where('status', 'pending')
-            ->with('sender.settings')
-            ->get()
-            ->pluck('sender');
-
-        return response()->json([
-            'friends'  => $friends,
-            'requests' => $requests,
-        ]);
+        return response()->json(['message' => 'Đã chấp nhận kết bạn!']);
     }
 }
