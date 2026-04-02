@@ -28,18 +28,20 @@ class MessageController extends Controller
 
         $inbox = $lastMessages->map(function ($msg) use ($userId) {
             $otherUserId = $msg->sender_id == $userId ? $msg->receiver_id : $msg->sender_id;
-            $otherUser = User::find($otherUserId)->load('settings');
+            $otherUser = User::find($otherUserId);
+            
+            if (!$otherUser) return null;
             
             return [
                 'id' => $otherUserId,
                 'name' => $otherUser->name,
-                'avatar' => $otherUser->settings->avatar ?? null,
+                'avatar' => $otherUser->settings?->avatar ?? "https://ui-avatars.com/api/?name=" . urlencode($otherUser->name) . "&background=7C3AED&color=fff",
                 'lastMessage' => $msg->content,
                 'time' => $msg->created_at->diffForHumans(),
                 'unread' => $msg->receiver_id == $userId && !$msg->read_at,
                 'timestamp' => $msg->created_at
             ];
-        });
+        })->filter();
 
         return response()->json($inbox->values());
     }

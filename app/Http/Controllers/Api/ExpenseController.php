@@ -138,6 +138,8 @@ class ExpenseController extends Controller
             'Giải trí'  => '#9C27B0',
             'Khác'      => '#64748B'
         ];
-        return $colors[$label] ?? '#64748B';
+        
+        if ($label === null) return $colors['Khác'];
+        return $colors[$label] ?? $colors['Khác'];
     }
 }
