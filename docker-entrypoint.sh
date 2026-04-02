@@ -13,19 +13,16 @@ php artisan config:clear
 php artisan cache:clear
 php artisan view:clear
 
-# Tối ưu hóa cấu hình cho Production (Render tốc độ cao)
-echo "⚡ Đang tối ưu hóa cấu hình..."
-php artisan config:cache
-php artisan route:cache
+# Làm sạch route cache để Render luôn nhận diện route mới
+echo "⚡ Khởi tạo cấu hình sạch cho môi trường sản phẩm..."
 
 # Tự động chạy Migration để cập nhật database (Supabase PG)
 echo "🐘 Đang chạy database migrations..."
 php artisan migrate --force
 
-# Chạy server chính thức
-# Sử dụng HOST 0.0.0.0 là QUAN TRỌNG để Render có thể kết nối từ bên ngoài
+# Chạy server chính thức với Artisan Serve
+# Artisan Serve tích hợp Router của Laravel, giúp xử lý đường dẫn URL tốt hơn hẳn php -S
 PORT="${PORT:-10000}" 
-echo "🚀 Ứng dụng đang cất cánh tại port $PORT..."
+echo "🚀 Ứng dụng quản lý tài chính đang cất cánh tại port $PORT..."
 
-# Sử dụng PHP server trực tiếp từ folder 'public' (Chuẩn bài Laravel)
-php -S 0.0.0.0:$PORT -t public
+php artisan serve --host=0.0.0.0 --port=$PORT
