@@ -55,9 +55,33 @@ class User extends Authenticatable
         return $this->hasMany(Expense::class);
     }
 
-    public function settings(): HasOne
+    /**
+     * Lấy tất cả các quan hệ bạn bè của user
+     */
+    public function friendships()
     {
-        return $this->hasOne(UserSetting::class);
+        return $this->hasMany(Friendship::class, 'sender_id')
+            ->orWhere('receiver_id', $this->id);
+    }
+
+    /**
+     * Helper để lấy danh sách User là bạn bè thực thụ
+     */
+    public function friends()
+    {
+        $sent = Friendship::where('sender_id', $this->id)
+            ->where('status', 'accepted')
+            ->with('receiver.settings')
+            ->get()
+            ->pluck('receiver');
+
+        $received = Friendship::where('receiver_id', $this->id)
+            ->where('status', 'accepted')
+            ->with('sender.settings')
+            ->get()
+            ->pluck('sender');
+
+        return $sent->concat($received);
     }
 
     public function sentFriendships(): HasMany
