@@ -56,6 +56,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Thông tin cài đặt người dùng (Avatar, v.v.)
+     */
+    public function settings()
+    {
+        return $this->hasOne(UserSetting::class);
+    }
+
+    /**
      * Lấy tất cả các quan hệ bạn bè của user
      */
     public function friendships()
