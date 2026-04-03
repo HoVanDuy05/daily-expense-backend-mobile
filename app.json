@@ -1,3 +1,12 @@
 {
-  "expo": {}
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "5b6d4c28-9a82-42f1-a80f-bc42e865c1ec"
+      }
+    },
+    "android": {
+      "package": "com.vanduy2005.dailyexpensebackend"
+    }
+  }
 }
